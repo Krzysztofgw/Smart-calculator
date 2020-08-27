@@ -1,0 +1,270 @@
+# write your code here
+from string import ascii_letters, digits
+import sys
+import re
+
+
+class Calculator:
+    def __init__(self):
+        self.variables = dict()
+        self.flag = False
+        self.operators = '+-*/('
+        self.operands = ascii_letters + digits
+        self.oper_prec = {'(': 3, '*': 2, '/': 2, '-': 1, '+': 1}
+
+    def set_input(self):
+        entry = input()
+        self.flag = False
+        if entry == "":
+            return None, False
+        elif self.check_if_command(entry):
+            return None, False
+        elif self.check_if_variable(entry):
+            return entry, True
+        if not self.flag and self.check_correctness(entry):
+            numbers = "".join(list(entry.split()))
+            return numbers, True
+        return None, False
+
+    def check_if_variable(self, _entry: str):
+        _entry = _entry.strip()
+        pattern = '^[a-zA-Z0-9]+( *=+ *[0-9a-zA-Z]+| *=+ *[0-9a-zA-Z-+ ]+)+$'
+        pattern_var = '^[a-zA-Z0-9]+$'
+        result = re.match(pattern_var, _entry)
+        if result:
+            if _entry.isalpha():
+                if _entry in list(self.variables.keys()):
+                    return True
+                else:
+                    print("Unknown variable")
+                    self.flag = True
+                    return False
+            else:
+                print("Invalid identifier")
+                self.flag = True
+                return False
+        result = re.match(pattern, _entry)
+        if result:
+            if _entry.count("=") > 1:
+                self.flag = True
+                print("Invalid assignment")
+                return False
+            fact1 = _entry[0:_entry.find("=")].strip()
+            if fact1.isalpha():
+                fact2 = _entry[_entry.find("=") + 1:].strip()
+                if fact2.isnumeric():
+                    return True
+                elif fact2.isalpha() and fact2 in list(self.variables.keys()):
+                    return True
+                elif fact2 not in list(self.variables.keys()) and fact2.isalpha():
+                    self.flag = True
+                    print("Unknown variable")
+                    return False
+                else:
+                    print("Invalid assignment")
+                    self.flag = True
+                    return False
+            else:
+                print("Invalid identifier")
+                self.flag = True
+                return False
+        return False
+
+    def check_if_command(self, _entry: str):
+        self.flag = False
+        _entry = _entry.strip()
+        if _entry.startswith("/"):
+            if _entry == "/exit":
+                print("Bye!")
+                sys.exit()
+            elif _entry == "/help":
+                self.get_help()
+                return True
+            else:
+                print("Unknown command")
+                self.flag = True
+                return False
+
+    def check_correctness(self, user_input):
+        if user_input.count(" ") >= 1:
+            if user_input.count("-") == 0 and user_input.count("+") == 0 and user_input.count("*") == 0 and user_input.count("/") == 0:
+                print("Invalid expression")
+                return False
+        return True
+
+    def get_help(self):
+        print("Type equation in the line. You can solve equation which include operations like adding and subtracting."
+              "\nType /exit if you want to end the progam.")
+
+    def add(self, a, b):
+        return a + b
+
+    def subtract(self, a, b):
+        return a - b
+
+    def multiply(self, a, b):
+        return a * b
+
+    def divide(self, a, b):
+        return a / b
+
+    def calculate_the_result(self, postfix):
+        equation_to = postfix.split()
+        stack = []
+        for i in equation_to:
+            if all(1 if j in digits else 0 for j in i):
+                stack.append(i)
+            elif i in list(self.variables.keys()):
+                stack.append(self.variables[i])
+            elif i in self.operators:
+                a = int(stack.pop())
+                b = int(stack.pop())
+                if i == "+":
+                    stack.append(a + b)
+                elif i == "-":
+                    stack.append(b - a)
+                elif i == "*":
+                    stack.append(a * b)
+                elif i == "/":
+                    stack.append(b / a)
+        return stack[0]
+
+    def fix_the_sign(self, equation_seq):
+        i = 0
+        while i < len(equation_seq):
+            if "+" in equation_seq[i]:
+                equation_seq[i] = "+"
+            elif "-" in equation_seq[i]:
+                if len(equation_seq[i]) % 2 == 0:
+                    equation_seq[i] = "+"
+                else:
+                    equation_seq[i] = "-"
+            elif "*" in equation_seq[i] and len(equation_seq[i]) > 1:
+                return "Invalid expression"
+            elif "/" in equation_seq[i] and len(equation_seq[i]) > 1:
+                return "Invalid expression"
+            elif equation_seq[0] == "-":
+                equation_seq[1] = equation_seq[0] + equation_seq[1]
+                equation_seq.pop(0)
+            elif equation_seq[0] == "+":
+                equation_seq.pop(0)
+            i += 1
+        return equation_seq
+
+    def infix_to_postfix(self, infix):
+        postfix = ''
+        stack = []
+
+        for i in infix:
+            if all(1 if j in self.operands else 0 for j in i):
+                postfix += i + " "
+            elif len(stack) == 0 or stack[-1] == '(' and i in self.operators:
+                stack.append(i)
+            else:
+                if i in self.operators:
+                    if self.oper_prec[i] > self.oper_prec[stack[-1]]:
+                        stack.append(i)
+                    else:
+                        while self.oper_prec[i] <= self.oper_prec[stack[-1]]:
+                            postfix += stack.pop() + " "
+                            if len(stack) == 0:
+                                stack.append(i)
+                                break
+                elif i == ')':
+                    while True:
+                        try:
+                            if stack[-1] == '(':
+                                stack.pop()
+                                break
+                            else:
+                                postfix += stack.pop() + " "
+                        except IndexError:
+                            return "Invalid expression"
+        while True:
+            if len(stack) == 0:
+                break
+            else:
+                postfix += stack.pop() + " "
+        if postfix.count("(") == postfix.count(")"):
+            return postfix
+        else:
+            return "Invalid expression"
+
+    def get_equation(self, numbers: str):
+        eq = numbers.replace(" ", "")
+        equation = []
+        index = 0
+        holder = ""
+        while index < len(numbers):
+            if eq[index] == "(":
+                equation.append("(")
+                index += 1
+            if eq[index] == ")":
+                equation.append(")")
+                index += 1
+            while index < len(numbers) and eq[index] in digits:
+                holder += eq[index]
+                index += 1
+            if holder != "":
+                equation.append(holder)
+                holder = ""
+            while index < len(numbers) and eq[index] in ascii_letters:
+                holder += eq[index]
+                index += 1
+            if holder != "":
+                equation.append(str(self.variables[holder]))
+                holder = ""
+            while index < len(numbers) and eq[index] in "*/":
+                holder += eq[index]
+                index += 1
+            if holder != "":
+                equation.append(holder)
+                holder = ""
+            while index < len(numbers) and eq[index] in "-+":
+                holder += eq[index]
+                index += 1
+            if holder != "":
+                equation.append(holder)
+                holder = ""
+        equation = self.fix_the_sign(equation)
+        return equation
+
+    def assign_the_var(self, variable: str):
+        var1 = variable[0:variable.find("=")].strip()
+        var2 = variable[variable.find("=") + 1:].strip()
+        if variable[variable.find("=") + 1:].strip() in list(self.variables.keys()):
+            self.variables[var1] = self.variables[var2]
+        else:
+            self.variables[var1] = int(var2)
+
+    def get_the_variable(self, variable: str):
+        var1 = variable.strip()
+        return self.variables[var1]
+
+    def main(self):
+        while True:
+            user_input, is_ok = self.set_input()
+            if user_input is None:
+                continue
+            elif not is_ok:
+                continue
+            elif is_ok:
+                if "=" in user_input:
+                    self.assign_the_var(user_input)
+                elif user_input.isalpha():
+                    print(self.get_the_variable(user_input))
+                else:
+                    equation = self.get_equation(user_input)
+                    if equation != "Invalid expression":
+                        postfix = self.infix_to_postfix(equation)
+                        if postfix == "Invalid expression":
+                            print(postfix)
+                        else:
+                            print(self.calculate_the_result(postfix))
+                    else:
+                        print(equation)
+
+
+if __name__ == "__main__":
+    main = Calculator()
+    main.main()
